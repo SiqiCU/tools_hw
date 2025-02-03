@@ -1,0 +1,269 @@
+//###########################################
+//## 源数据表/Source Table
+//###########################################
+/*
+Table 1 name: payment_transaction
+
++-------------------------------------------------------------------------------+
+|txn_num|user_id|country|txn_time		|merchant_id|txn_amt|refund_txn|test_txn|
+|-------------------------------------------------------------------------------|
+|t00001 |u001   |SG 	|1/13/17 8:00 AM|m000001	|100	|no		   |no		|
+|t00002 |u002   |SG 	|1/15/17 9:30 AM|m000002	|200	|no		   |no		|
+|t00003 |u003   |MY 	|1/31/18 6:00 PM|m000001	|300	|no		   |no		|
+|t00004 |u004   |SG 	|2/1/18  6:00 PM|m000003	|10		|yes	   |no		|
+|t00005 |u001   |MY 	|3/1/18 11:13 PM|m000002	|500	|no		   |yes		|
+|t00006 |u005   |NZ 	|2/5/18  7:12 AM|m000004	|10000	|no		   |no		|
+|t00007 |u006   |AU 	|2/7/18  3:12 PM|m000004	|1000	|no		   |no		|
+|...    |...    |...	|...			|...		|...	|...	   |...		|
+|t10000 |u101   |SG 	|4/1/19 10:00 PM|m000002	|400	|no		   |no 		|
++-------------------------------------------------------------------------------+
+
+
+Table 2 name: merchant_detail
++-------------------------+
+|merchant_id|merchant_name|
+|-------------------------|
+|m000001    |merchant a   |
+|m000002    |merchant b   |
+|....       |merchant c   |
++-------------------------+
+
+Table 3 name: merchant_acqusition_detail
++-------------------------------------------------------+
+|vendor_id|vendor_name|merchant_id|merchant_enabled_time|
+|-------------------------------------------------------|
+|v001	  |vendor a	  |m000001	  |1/1/17 9:00 AM       |
+|v001	  |vendor a	  |m000002	  |1/2/17 10:00 AM      |
+|v001	  |vendor a	  |m000003	  |1/5/17 4:00 PM       |
+|v001	  |vendor a	  |m000004	  |1/5/17 5:00 PM       |
+|v002	  |vendor b	  |m000005	  |1/1/18 9:00 AM       |
+|...	  |...		  |...		  |...					|                                       |
++-------------------------------------------------------+
+*/
+
+//###########################################
+//## 评测题目/SQL Test
+//###########################################
+
+/* SQL test1: Marketing team need to run CNY campaign review for period from 2018.02.01 to 2018.02.07. Please write down one single SQL query from above tables to get detail merchant list which total number of transaction is over 1000 during campaign. Expected that it includes number of transaction, no of payment user, total amount and average transaction size as below, but it must exclude refund and test transaction.
+运营团队需要对中国新年营销活动做一次复盘, 活动具体日期是从2018.02.01 到 2018.02.07。请写出单独一条SQL查询语句，来抽取活动期内总交易笔数超过1000笔商户列表，包括其对应的交易笔数，交易用户，交易金额以及笔单价，但并不包括测试交易和退款交易。
+
+Expected output data table:
++----------------------------------------------------------------------+
+|merchant_name|no_of_txn |no_of_txn_user|total_amount |average_txn_size|
+|----------------------------------------------------------------------|
+|merchant e	  |1,000	 |...			|1,000,000	  |1,000		   |
+|merchant f	  |2,000	 |...			|400,000	  |200			   |
+|...		  |..(1,000+)|...			|...		  |... 			   |
++----------------------------------------------------------------------+
+*/
+
+//test1 SQL code answer:
+
+select mn.merchant_name
+, count(distinct txn_num) as no_of_txn
+, count(user_id) as no_of_txn_user
+, sum(txn_amt) as total_amount
+, total_amount/no_of_txn_user as average_txn_size 
+from payment_transaction pt 
+join merchant_detail mn on mn.merchant_id=pt.marchant_id
+where refund_txn='no' and test_txn= 'no' 
+and to_date(LEFT(txn_time, CHARINDEX(' ',txn_time)-1),'MM/DD/YY') 
+between '2018-02-01' and '2018-02-07'
+group by merchant_name having no_of_txn>1000
+
+
+
+
+
+
+//=====================================================================
+
+/* SQL test2: For business planning, finance want to have an overview of the whole year of 2018 from 01.01 to 12.31 business progress, including monthly number of transaction, monthly new payment user, monthly new payment merchant. Please write down SQL in one single query.
+为了业务规划，财务团队需要看整个2018年从01.01到12.31时间内，月维度的每月交易笔数，每月新增交易用户数，每月新增交易商户数，请写出单独一条SQL查询语句。
+Expected output data table:
++-------------------------------------------------------------------------+
+|transaction_month|no_of_txn|no_of_new_txn_user|no_of_new_payment_merchant|
+|-------------------------------------------------------------------------|
+|201801			  |...		|...			   |...						  |
+|201802			  |...		|...			   |...						  |
+|...   			  |...		|...			   |...						  |
+|201812			  |...		|...			   |...						  |
++-------------------------------------------------------------------------+
+*/
+
+//test2 SQL code answer:
+
+select 
+t.transaction_month, 
+t.no_of_txn,
+count(distinct user_id) as no_of_new_txn_user,
+count(distinct merchant_id) as no_of_new_payment_merchant
+
+from
+
+(select distinct to_varchar(to_date(LEFT(txn_time, CHARINDEX(' ',txn_time)-1), 'MM/DD/YY'), 'YYYYMM')as transaction_month,
+count(distinct TXN_NUM) as no_of_txn 
+from payment transaction t
+where to_date(LEFT(txn_time, CHARINDEX(",txn_time)-1), MM/DD/YY')
+between '2018-01-01' and '2018-12-31' group by 1) t 
+
+left join 
+
+(select merchant_id,
+min(to_varchar(to_date(LEFT(txn_time, CHARINDEX('',txn_time)-1), 'MM/DD/YY'), 'YYYYMM')) as transaction_month
+from payment_transaction t 
+where to_date(LEFT(txn_time, CHARINDEX(' ',txn_time)-1),'MM/DD/YY') 
+between '2018-01-01' and '2018-12-31' 
+group by merchant_id order by 1
+) m_fm 
+on m_fm.transaction_month=t.transaction_month
+
+left join 
+
+(select user_id, 
+min(to_varchar(to_date(LEFT(txn_time, CHARINDEX(' ',txn_time)-1), 'MM/DD/YY'), 'YYYYMM')) as transaction_month
+from payment_transaction t 
+where to_date(LEFT(txn_time, CHARINDEX(' ',txn_time)-1),'MM/DD/YY') 
+between '2018-01-01' and '2018-12-31'
+group by user_id order by 2) u_fm
+on u_fm.transaction_month=t.transaction_month
+
+
+group by 1,2 
+order by 1 
+
+
+
+
+
+
+
+//=====================================================================
+
+/* SQL test3: In order to recruit target merchant offer for annual campaign, marketing team request a list of top 10 merchant for SG/MY/TH each country with total transaction amount and ranking. Please write down one single SQL to fetch data.
+为了配合运营团队年度大促招商，需要抽取SG/MY/TH 三个国家前10的商户列表，包括商户交易金额以及相应金额排序，请写出单独一条SQL查询语句。
+Expected output data table:
++-------------------------------------------------+
+|country|merchant_name|total_amount|amount_ranking|
+|-------------------------------------------------|
+|SG	|merchant a    	 |...		   |1  			  |
+|SG	|...		  |...		   |...			  |
+|SG	|...		  |...		   |10			  |
+|...	|...		  |...		   |...			  |
+|MY 	|...		  |...		   |10			  |
+|...	|...		  |...		   |...			  |
+|TH 	|...		  |...		   |10 			  |
++-------------------------------------------------+
+*/
+
+//test3 SQL code answer:
+
+
+with r as (
+select county
+,merchant_id
+,merchant_name
+,sum(TXN_AMT) as total_amount
+,rank() OVER(PARTITION BY county ORDER BY sum(TXN_AMT) DESC) AS amount_ranking
+from payment_transaction pt
+join merchant_detail mn on mn.merchant_id=pt.merchant_id
+where county in ('SG', 'MY', 'TH') group by all
+order by county desc 
+)
+select county
+,merchant_name
+,total_amount
+,amount_ranking 
+from r 
+where amount_ranking<=10 
+order by county, amount_ranking
+
+
+
+
+//=====================================================================
+
+/* SQL test4: Business development team need to monitor merchant acquisition progress. Please write down one single SQL to get accumulated total enabled merchant number by vendor in daily basis.
+商户业务拓展团队需要监控每日累计新接的总商户数，请写出单独一条SQL查询语句。
+Expected output data table:
++--------------------------------------------------+
+|vendor_name|biz_date|accumulated_total_merchant_no|
+|--------------------------------------------------|
+|vendor a	|20170101|1                        |	
+|vendor a	|20170102|2	                           |
+|vendor a	|20170105|4	                           |
+|...		|...	 |...                          |	
+|vendor b	|20180101|1	                           |
+|...		|...	 |...                          |	
+|...		|...	 |...                          |	
+|vendor b	|...	 |...                          |
++--------------------------------------------------+
+*/
+
+//test4 SQL code answer:
+
+select 
+vendor_name
+,biz_date
+,count(merchant_id) over (partition by biz_date order by biz_date) as accumulated_total_marchant_no
+
+from
+( 
+select to_date(LEFT(txn_time, CHARINDEX(' ',txn_time)-1), 'MM/DD/YY'), 'YYYYMM') as biz_date
+,*
+from merchant_acquisition_detail
+)
+
+
+
+//=====================================================================
+
+/* SQL test5:In order to capture KA merchant payment transaction exception, our business team would like to identify those historical days that current day number of transactions was lower past 7 days average for each KA merchant between 2018.01.01 to 2018.12.31. Please write down one single SQL to get accumulated total enabled merchant number by vendor in daily basis.
+为了抓取异常KA商户交易，业务团队希望产出一个列表包括KA商户交易日期以及异常标志，把当日交易笔数低于过去7天平均交易笔数的字段exception_idc标志为Y，请写出单独一条SQL查询语句。
+Expected output data table:
++---------------------------------------------------------+
+|vendor_name|biz_date|number_of_transactions|exception_idc|
+|---------------------------------------------------------|
+|merchant e |20180101|5						|N  		  |
+|merchant e |20180102|5						|N  		  |
+|merchant e |20180103|5						|N  		  |
+|merchant e |20180104|5						|N  		  |
+|merchant e |20180105|5						|N  		  |
+|merchant e |20180106|5						|N  		  |
+|merchant e |20180107|5						|N  		  |
+|merchant e |20180108|1						|Y  		  |
+|merchant e |20180108|4						|Y  		  |
+|...		|...	 |...					|...		  |
+|---------------------------------------------------------|
+*/
+
+//test5 SQL code answer:
+
+
+select merchant_name
+,biz_date
+,number_of_transactions
+,avg(number_of_transactions) over (partition by merchant_name order by biz_date rows 6 preceding) as rolling_avg_trans
+,case when number_of_transactions<rolling_avg_trans then 'Y' else 'N' end as exception_idc
+
+ from 
+
+(select merchant_name,
+to_date(LEFT(txn_time, CHARINDEX(' ',txn_time)-1), 'MM/DD/YY'), 'YYYYMM')  as biz _date,
+count(txn_num) as number_of_transactions 
+from payment_transaction pt
+join merchant_detail mn on mn.merchant_id=pt.merchant_id 
+and to_date(LEFT(txn_time, CHARINDEX(' ',txn_time)-1), 'MM/DD/YY'), 'YYYYMM') 
+between '2018-01-01' and '2018-12-31'
+and county='KA' group by 1,2 order by 2,1
+)
+
+
+
+
+
+
+
+
+//=====================================================================
