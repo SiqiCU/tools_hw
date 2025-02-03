@@ -104,8 +104,8 @@ from
 
 (select distinct to_varchar(to_date(LEFT(txn_time, CHARINDEX(' ',txn_time)-1), 'MM/DD/YY'), 'YYYYMM')as transaction_month,
 count(distinct TXN_NUM) as no_of_txn 
-from payment transaction t
-where to_date(LEFT(txn_time, CHARINDEX(",txn_time)-1), MM/DD/YY')
+from payment_transaction t
+where to_date(LEFT(txn_time, CHARINDEX(' ',txn_time)-1), 'MM/DD/YY')
 between '2018-01-01' and '2018-12-31' group by 1) t 
 
 left join 
@@ -210,7 +210,7 @@ vendor_name
 
 from
 ( 
-select to_date(LEFT(txn_time, CHARINDEX(' ',txn_time)-1), 'MM/DD/YY'), 'YYYYMM') as biz_date
+select to_date(LEFT(merchant_enable_time, CHARINDEX(' ',merchant_enable_time)-1), 'MM/DD/YY')) as biz_date
 ,*
 from merchant_acquisition_detail
 )
@@ -250,11 +250,11 @@ select merchant_name
  from 
 
 (select merchant_name,
-to_date(LEFT(txn_time, CHARINDEX(' ',txn_time)-1), 'MM/DD/YY'), 'YYYYMM')  as biz _date,
+to_date(LEFT(txn_time, CHARINDEX(' ',txn_time)-1), 'MM/DD/YY')  as biz_date,
 count(txn_num) as number_of_transactions 
 from payment_transaction pt
 join merchant_detail mn on mn.merchant_id=pt.merchant_id 
-and to_date(LEFT(txn_time, CHARINDEX(' ',txn_time)-1), 'MM/DD/YY'), 'YYYYMM') 
+and to_date(LEFT(txn_time, CHARINDEX(' ',txn_time)-1), 'MM/DD/YY')
 between '2018-01-01' and '2018-12-31'
 and county='KA' group by 1,2 order by 2,1
 )
